@@ -87,7 +87,7 @@ void MucManager::joinRoomIfConfigured(const QXmppBookmarkConference &bookmark)
     // join room if autoJoin
     if (bookmark.autoJoin())
     {
-        QXmppMucRoom *room = manager_->addRoom(bookmark.name());
+        QXmppMucRoom *room = manager_->addRoom(bookmark.jid());
         QString nickName = bookmark.nickName();
 
         if(nickName.isEmpty())
