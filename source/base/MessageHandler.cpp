@@ -151,14 +151,19 @@ void MessageHandler::sendMessage(QString const &toJid, QString const &message, Q
 
     sendParams.setAcceptedTrustLevels(ANY_TRUST_LEVEL);
 
+    msg.setType(isGroup ? QXmppMessage::GroupChat : QXmppMessage::Chat);
     msg.setReceiptRequested(true);
     msg.setMarkable(true);
-    msg.setStanzaId(QXmppUtils::generateStanzaUuid());
-    msg.setId(msg.stanzaId());
+    if (!isGroup) // Don't set stanza-id if MUC, would trigger carbon
+    {
+        msg.setStanzaId(QXmppUtils::generateStanzaUuid());
+        msg.setId(msg.stanzaId());
+    }
 
     // exchange body by omemo stuff if applicable
     if ((settings_->getSoftwareFeatureOmemoEnabled() == true)
-        && (! settings_->getSendPlainText().contains(toJid))) // no force for plain text msg in settings
+        && (! settings_->getSendPlainText().contains(toJid)) // no force for plain text msg in settings
+        && (! isGroup)) // omemo not supported for muc yet
     {
         msg.setEncryptionMethodNs("eu.siacs.conversations.axolotl");
         security = 1;
@@ -169,12 +174,6 @@ void MessageHandler::sendMessage(QString const &toJid, QString const &message, Q
         {
             msg.setOutOfBandUrl(message);
         }
-    }
-
-    if(isGroup == true)
-    {
-        msg.setType(QXmppMessage::GroupChat);
-        security = 0; // No support for encryption for groups
     }
 
     qDebug() << "sendMessage" << "to:" << msg.to() << "id:" << msg.stanzaId() << "security :" << security << " body:" << message << endl;
