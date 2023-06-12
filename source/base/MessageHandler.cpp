@@ -56,6 +56,14 @@ void MessageHandler::handleMessageReceived(const QXmppMessage &message)
         security = 1;
     }
 
+    if (message.type() == QXmppMessage::GroupChat && message.stamp().isValid())
+    {
+        // Ignore XEP-0045 history messages
+        // Not well handled, they create duplicates in local history, should use MAM
+        // Should also not be requested, but QXmpp don't have this option as of 1.5.4
+        return;
+    }
+
     // XEP 280
     bool sentCarbon = false;
 
