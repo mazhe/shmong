@@ -154,10 +154,10 @@ void MessageHandler::sendMessage(QString const &toJid, QString const &message, Q
     msg.setType(isGroup ? QXmppMessage::GroupChat : QXmppMessage::Chat);
     msg.setReceiptRequested(true);
     msg.setMarkable(true);
+    msg.setId(QXmppUtils::generateStanzaUuid());
     if (!isGroup) // Don't set stanza-id if MUC, would trigger carbon
     {
-        msg.setStanzaId(QXmppUtils::generateStanzaUuid());
-        msg.setId(msg.stanzaId());
+        msg.setStanzaId(msg.id());
     }
 
     // exchange body by omemo stuff if applicable
@@ -181,8 +181,10 @@ void MessageHandler::sendMessage(QString const &toJid, QString const &message, Q
     persistence_->addMessage( msg.stanzaId(),
                               QXmppUtils::jidToBareJid(msg.to()),
                               QXmppUtils::jidToResource(msg.to()),
-                              message, type, 0, security);
-
+                              message,
+                              type,
+                              (!isGroup) ? 0 : 1, // store MUC messages as if received
+                              security);
     emit messageSent(msg.stanzaId());
 
     if(security) {
