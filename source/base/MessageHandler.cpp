@@ -178,7 +178,7 @@ void MessageHandler::sendMessage(QString const &toJid, QString const &message, Q
 
     qDebug() << "sendMessage" << "to:" << msg.to() << "id:" << msg.stanzaId() << "security :" << security << " body:" << message << endl;
 
-    persistence_->addMessage( msg.stanzaId(),
+    persistence_->addMessage( msg.stanzaId().size() > 0 ? msg.stanzaId() : msg.id(),
                               QXmppUtils::jidToBareJid(msg.to()),
                               QXmppUtils::jidToResource(msg.to()),
                               message,
