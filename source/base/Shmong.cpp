@@ -278,23 +278,27 @@ QString Shmong::getCurrentChatPartner()
 
 void Shmong::sendMessage(QString const &toJid, QString const &message, QString const &type)
 {
-    bool isGroup = rosterController_->isGroup(toJid);
-    messageHandler_->sendMessage(toJid, message, type, isGroup);
+    if (rosterController_->isGroup(toJid))
+    {
+        messageHandler_->sendMucMessage(toJid, message, type);
+    }
+    else
+    {
+        messageHandler_->sendChatMessage(toJid, message, type);
+    }
 }
 
 void Shmong::sendMessage(QString const &message, QString const &type)
 {
     const QString toJid = getCurrentChatPartner();
 
-    if (! toJid.isEmpty())
-    {
-        bool isGroup = rosterController_->isGroup(toJid);
-        messageHandler_->sendMessage(toJid, message, type, isGroup);
-    }
-    else
+    if (toJid.isEmpty())
     {
         qDebug() << "tried to send msg without current chat partner selected!";
+        return;
     }
+
+    sendMessage(toJid, message, type);
 }
 
 

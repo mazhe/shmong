@@ -10,6 +10,7 @@
 #include "QXmppClient.h"
 #include "QXmppE2eeMetadata.h"
 #include "QXmppMessage.h"
+#include <QXmppMucManager.h>
 #include "QXmppUtils.h"
 #include "QXmppTask.h"
 
@@ -143,27 +144,20 @@ void MessageHandler::handleMessageReceived(const QXmppMessage &message)
     }
 }
 
-void MessageHandler::sendMessage(QString const &toJid, QString const &message, QString const &type, bool isGroup)
+void MessageHandler::sendChatMessage(QString const &toJid, QString const &message, QString const &type)
 {
     QXmppMessage msg("", toJid, message);
     unsigned int security = 0;
-    QXmppSendStanzaParams sendParams;
 
-    sendParams.setAcceptedTrustLevels(ANY_TRUST_LEVEL);
-
-    msg.setType(isGroup ? QXmppMessage::GroupChat : QXmppMessage::Chat);
+    msg.setType(QXmppMessage::GroupChat);
     msg.setReceiptRequested(true);
     msg.setMarkable(true);
     msg.setId(QXmppUtils::generateStanzaUuid());
-    if (!isGroup) // Don't set stanza-id if MUC, would trigger carbon
-    {
-        msg.setStanzaId(msg.id());
-    }
+	msg.setStanzaId(msg.id());
 
     // exchange body by omemo stuff if applicable
     if ((settings_->getSoftwareFeatureOmemoEnabled() == true)
-        && (! settings_->getSendPlainText().contains(toJid)) // no force for plain text msg in settings
-        && (! isGroup)) // omemo not supported for muc yet
+        && (! settings_->getSendPlainText().contains(toJid))) // no force for plain text msg in settings
     {
         msg.setEncryptionMethodNs("eu.siacs.conversations.axolotl");
         security = 1;
@@ -178,20 +172,61 @@ void MessageHandler::sendMessage(QString const &toJid, QString const &message, Q
 
     qDebug() << "sendMessage" << "to:" << msg.to() << "id:" << msg.stanzaId() << "security :" << security << " body:" << message << endl;
 
-    persistence_->addMessage( msg.stanzaId().size() > 0 ? msg.stanzaId() : msg.id(),
+    persistence_->addMessage( msg.id(),
                               QXmppUtils::jidToBareJid(msg.to()),
                               QXmppUtils::jidToResource(msg.to()),
                               message,
                               type,
-                              (!isGroup) ? 0 : 1, // store MUC messages as if received
+                              0,
                               security);
-    emit messageSent(msg.stanzaId());
+    emit messageSent(msg.id());
 
     if(security) {
+        QXmppSendStanzaParams sendParams;
+        sendParams.setAcceptedTrustLevels(ANY_TRUST_LEVEL);
         client_->sendSensitive(std::move(msg), sendParams);
     } else {
-        client_->send(std::move(msg), sendParams);
+        client_->send(std::move(msg));
     }
+}
+
+void MessageHandler::sendMucMessage(QString const &toJid, QString const &message, QString const &type)
+{
+    QXmppMessage msg("", toJid, message);
+    msg.setType(QXmppMessage::GroupChat);
+    msg.setReceiptRequested(true);
+    msg.setMarkable(true);
+    msg.setId(QXmppUtils::generateStanzaUuid());
+
+	int security = 0; // TODO: Omemo for MUC
+
+    if (type.compare("txt", Qt::CaseInsensitive) != 0)
+    {
+		// xep-0066. Only add the stanza on plain-text messages, as described in the xep-0454
+		msg.setOutOfBandUrl(message);
+    }
+
+    // Get the user nickname, not needed to send message, but to store it
+	QList<QXmppMucRoom *> rooms = client_->findExtension<QXmppMucManager>()->rooms();
+	QList<QXmppMucRoom *>::const_iterator room_it = std::find_if( rooms.cbegin(),
+                                                                  rooms.cend(),
+                                                                  [&toJid](const QXmppMucRoom *r) {return (toJid.compare(r->jid()) == 0);});
+    if (room_it == rooms.cend())
+    {
+        return;
+    }
+	QString nickName = (*room_it)->nickName();
+
+    persistence_->addMessage( msg.id(),
+                              QXmppUtils::jidToBareJid(msg.to()),
+                              nickName,
+                              message,
+                              type,
+                              1,
+                              security);
+    emit messageSent(msg.id());
+
+	client_->send(std::move(msg));
 }
 
 void MessageHandler::sendDisplayedForJid(const QString &jid)

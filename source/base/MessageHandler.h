@@ -22,7 +22,8 @@ public:
     MessageHandler(Persistence* persistence, Settings* settings, RosterController* rosterController, QObject* parent = 0);
 
     void setupWithClient(QXmppClient* client);
-    void sendMessage(QString const &toJid, QString const &message, QString const &type, bool isGroup);
+    void sendChatMessage(QString const &toJid, QString const &message, QString const &type);
+    void sendMucMessage(QString const &toJid, QString const &message, QString const &type);
     void sendDisplayedForJid(const QString &jid);
     void downloadFile(const QString &str, const QString &msgId);
 
